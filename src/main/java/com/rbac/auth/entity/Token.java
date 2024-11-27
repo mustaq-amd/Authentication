@@ -17,6 +17,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -26,19 +28,22 @@ public class Token {
 
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)
-  public String id;
+  private String id;
 
   @Column(unique = true)
-  public String token;
+  private String token;
 
   @Enumerated(EnumType.STRING)
-  public TokenType tokenType = TokenType.BEARER;
+  private TokenType tokenType = TokenType.BEARER;
 
-  public boolean revoked;
+  private boolean revoked;
 
-  public boolean expired;
+  private boolean expired;
+
+  private LocalDateTime createdAt;
+
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "user_id")
-  public User user;
+  private User user;
 }

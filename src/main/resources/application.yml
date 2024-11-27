@@ -30,8 +30,8 @@ server:
 mail:
   host: smtp.gmail.com
   port: 587
-  username: cthospital8@gmail.com
-  password: fntsrwefmpstsucn
+  username: mustaqafghan@gmail.com
+  password: qtgpkmwsvchlgxrm
   properties:
     mail:
       smtp:
