@@ -34,7 +34,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
       @NonNull HttpServletResponse response,
       @NonNull FilterChain filterChain
   ) throws ServletException, IOException {
-    if (request.getServletPath().contains("/api/v1/auth")) {
+    if (request.getServletPath().equals("/api/v1/auth/login") ||
+            request.getServletPath().equals("/api/v1/auth/register")) {
       filterChain.doFilter(request, response);
       return;
     }
@@ -45,7 +46,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
       filterChain.doFilter(request, response);
       return;
     }
-    jwt = authHeader.substring(7);
+    jwt = authHeader.split(" ")[2].trim();
     userEmail = jwtService.extractUsername(jwt);
     if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
       UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
@@ -62,6 +63,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             new WebAuthenticationDetailsSource().buildDetails(request)
         );
         SecurityContextHolder.getContext().setAuthentication(authToken);
+      } else {
+        System.out.println("JWT is invalid or token is revoked/expired");
       }
     }
     filterChain.doFilter(request, response);

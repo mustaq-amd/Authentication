@@ -2,11 +2,9 @@ package com.rbac.auth.controller;
 
 import java.io.IOException;
 
+import com.rbac.auth.dto.OtpRequest;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.rbac.auth.dto.AuthenticationRequest;
 import com.rbac.auth.dto.AuthenticationResponse;
@@ -35,7 +33,6 @@ public class AuthController {
     public ResponseEntity<AuthenticationResponse> authenticate(
             @RequestBody AuthenticationRequest request
     ) {
-        System.out.println("inside /authenticate controller");
         return ResponseEntity.ok(service.authenticate(request));
     }
 
@@ -46,6 +43,23 @@ public class AuthController {
     ) throws IOException {
         service.refreshToken(request, response);
     }
+
+    @PostMapping("/send-otp")
+    public ResponseEntity<String> sendOtp(@RequestBody OtpRequest request) {
+        return ResponseEntity.ok(service.generateOtp(request.getEmail(), request.getMobile()));
+    }
+
+    @PostMapping("/login-with-otp")
+    public ResponseEntity<AuthenticationResponse> loginWithOtp(@RequestBody OtpRequest request) {
+        return ResponseEntity.ok(service.loginWithOtp(request.getEmail(), request.getMobile(), request.getOtp()));
+    }
+
+    @GetMapping("/loggedin-user")
+    public ResponseEntity<String> getLoggedInUser() {
+        return ResponseEntity.ok(service.getLoggedInUser());
+    }
+
+
 
 
 }

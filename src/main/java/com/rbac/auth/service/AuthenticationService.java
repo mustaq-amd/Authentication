@@ -1,10 +1,16 @@
 package com.rbac.auth.service;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.util.Random;
 
+import com.rbac.auth.entity.Otp;
+import com.rbac.auth.repository.OtpRepository;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -33,6 +39,8 @@ public class AuthenticationService {
 	private final PasswordEncoder passwordEncoder;
 	private final JwtService jwtService;
 	private final AuthenticationManager authenticationManager;
+	private final NotificationService notificationService;
+	private final OtpRepository otpRepository;
 
 	public AuthenticationResponse register(RegisterRequest request) {
 		if(isUserAlreadyExist(request.getEmail())) {
@@ -53,8 +61,7 @@ public class AuthenticationService {
 	}
 
 	public AuthenticationResponse authenticate(AuthenticationRequest request) {
-		System.out.println("inside authenticate : "+request.getEmail()+" "+request.getPassword());
-		authenticationManager
+		Authentication authentication = authenticationManager
 				.authenticate(new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
 		var user = repository.findByEmail(request.getEmail()).orElseThrow();
 		var jwtToken = jwtService.generateToken(user);
@@ -103,4 +110,68 @@ public class AuthenticationService {
 		}
 	}
 
+	public AuthenticationResponse loginWithOtp(String email, String mobile, String otp) {
+		Otp otpRecord;
+		if (email != null && !email.isEmpty()) {
+			otpRecord = otpRepository.findByEmailAndOtpAndUsedFalse(email, otp)
+					.orElseThrow(() -> new IllegalArgumentException("Invalid or expired OTP"));
+		} else if (mobile != null && !mobile.isEmpty()) {
+			otpRecord = otpRepository.findByMobileAndOtpAndUsedFalse(mobile, otp)
+					.orElseThrow(() -> new IllegalArgumentException("Invalid or expired OTP"));
+		} else {
+			throw new IllegalArgumentException("Either email or mobile must be provided");
+		}
+		if (otpRecord.getExpiresAt().isBefore(LocalDateTime.now())) {
+			throw new IllegalArgumentException("OTP has expired!");
+		}
+
+		// Mark OTP as used
+		otpRecord.setUsed(true);
+		otpRepository.save(otpRecord);
+
+		// Load user and generate tokens
+		var user = email != null ? repository.findByEmail(email).orElseThrow() :
+				repository.findByMobile(mobile).orElseThrow();
+		var jwtToken = jwtService.generateToken(user);
+		var refreshToken = jwtService.generateRefreshToken(user);
+		revokeAllUserTokens(user);
+		saveUserToken(user, jwtToken);
+
+		return AuthenticationResponse.builder()
+				.accessToken(jwtToken)
+				.refreshToken(refreshToken)
+				.build();
+	}
+
+	public String generateOtp(String email, String mobile) {
+		if ((email == null || email.isEmpty()) && (mobile == null || mobile.isEmpty())) {
+			throw new IllegalArgumentException("Either email or mobile must be provided");
+		}
+
+		String otp = String.valueOf(new Random().nextInt(999999)); // Generate a 6-digit OTP
+		var otpRecord = Otp.builder()
+				.email(email)
+				.mobile(mobile)
+				.otp(otp)
+				.createdAt(LocalDateTime.now())
+				.expiresAt(LocalDateTime.now().plusMinutes(5)) // Valid for 5 minutes
+				.build();
+		otpRepository.save(otpRecord);
+
+		// Send OTP via email or SMS based on provided information
+		if (email != null && !email.isEmpty()) {
+			notificationService.sendEmailOtp(email, otp);
+		}
+//		} else if (mobile != null && !mobile.isEmpty()) {
+//			notificationService.sendSmsOtp(mobile, otp);
+//		}
+
+		return "OTP sent successfully!";
+	}
+
+
+	public String getLoggedInUser() {
+		System.out.println("Logged in user : "+SecurityContextHolder.getContext().getAuthentication().getDetails().toString());
+		return SecurityContextHolder.getContext().getAuthentication().getName();
+	}
 }

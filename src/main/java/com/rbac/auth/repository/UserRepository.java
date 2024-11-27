@@ -9,4 +9,6 @@ import com.rbac.auth.entity.User;
 public interface UserRepository extends JpaRepository<User, String> {
 
 	Optional<User> findByEmail(String email);
+
+    Optional<User> findByMobile(String mobile);
 }
